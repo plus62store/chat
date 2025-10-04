@@ -522,62 +522,61 @@
             conversationHistory = [];
         }
 
-        async function sendMessage() {
-            const message = elements.messageInput.value.trim();
-            if (!message) return;
+async function sendMessage() {
+    const message = elements.messageInput.value.trim();
+    if (!message) return;
 
-            // Clear input
-            elements.messageInput.value = '';
+    // Clear input
+    elements.messageInput.value = '';
 
-            // Add user message
-            addMessage(message, 'user');
+    // Add user message
+    addMessage(message, 'user');
 
-            // Show typing indicator
-            showTypingIndicator();
+    // Show typing indicator
+    showTypingIndicator();
 
-            try {
-                // Prepare message for AI
-                let enhancedMessage = message;
-                if (currentProduct) {
-                    enhancedMessage = `[Produk: ${currentProduct.name}] ${message}`;
-                }
-
-                const response = await fetch(`${BACKEND_URL}/chat`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: enhancedMessage,
-                        history: conversationHistory
-                    })
-                });
-
-                const data = await response.json();
-                removeTypingIndicator();
-
-                if (data.success && data.reply) {
-                    addMessage(data.reply, 'bot');
-                    
-                    // Update conversation history
-                    conversationHistory.push(
-                        { role: 'user', content: enhancedMessage },
-                        { role: 'model', content: data.reply }
-                    );
-
-                    // Jika ada produk yang ditampilkan, update UI
-                    if (data.showProducts && data.products && data.products.length > 0) {
-                        // Anda bisa menambahkan logika untuk menampilkan produk yang direkomendasikan
-                        console.log('Products to show:', data.products);
-                    }
-                } else {
-                    throw new Error(data.error || 'No valid response from AI');
-                }
-
-            } catch (error) {
-                console.error('Error:', error);
-                removeTypingIndicator();
-                addMessage('Maaf, terjadi kesalahan. Silakan coba lagi.', 'bot');
-            }
+    try {
+        // Siapkan pesan untuk AI - perbaiki format
+        let enhancedMessage = message;
+        if (currentProduct) {
+            enhancedMessage = `Tentang produk "${currentProduct.title}" (ID: ${currentProduct.id}): ${message}`;
         }
+
+        const response = await fetch(`${BACKEND_URL}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: enhancedMessage,
+                conversationHistory: conversationHistory
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        removeTypingIndicator();
+
+        // Perbaiki pengecekan respons
+        if (data.success !== false && data.reply) {
+            addMessage(data.reply, 'bot');
+
+            // Update conversation history
+            conversationHistory.push(
+                { role: 'user', content: enhancedMessage },
+                { role: 'model', content: data.reply }
+            );
+        } else {
+            throw new Error(data.error || 'Tidak ada respons yang valid dari AI');
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+        removeTypingIndicator();
+        addMessage('Maaf, terjadi kesalahan: ' + error.message, 'bot');
+    }
+}
 
         function addMessage(text, sender) {
             const messageElement = document.createElement('div');
